@@ -152,6 +152,29 @@ export const ACTIONS = {
 
 export type TAction = keyof typeof ACTIONS;
 
+const ACTION_SET: ReadonlySet<string> = new Set(Object.keys(ACTIONS));
+
+// Typed as a Record so adding an action with required args fails to compile
+// until it is listed here.
+const ACTIONS_WITH_REQUIRED_ARGS: Record<
+	Exclude<TAction, TActionWithOptionalArgs>,
+	true
+> = {
+	"remove-media-asset": true,
+	"remove-media-assets": true,
+};
+
+const ACTION_WITH_REQUIRED_ARGS_SET: ReadonlySet<string> = new Set(
+	Object.keys(ACTIONS_WITH_REQUIRED_ARGS),
+);
+
+/** Whether `value` is an action that can be bound to a shortcut. */
+export function isActionWithOptionalArgs(
+	value: string,
+): value is TActionWithOptionalArgs {
+	return ACTION_SET.has(value) && !ACTION_WITH_REQUIRED_ARGS_SET.has(value);
+}
+
 const ACTION_DEFAULT_SHORTCUTS = [
 	["toggle-play", ["space", "k"]],
 	["seek-forward", ["l"]],
