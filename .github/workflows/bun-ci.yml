@@ -65,11 +65,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-1.2.18-${{ hashFiles('apps/web/bun.lock') }}
+          key: ${{ runner.os }}-bun-1.2.18-${{ hashFiles('bun.lock') }}
 
       - name: Install dependencies
-        working-directory: apps/web
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build
         working-directory: apps/web
@@ -77,5 +76,7 @@ jobs:
 
       - name: Run tests
         working-directory: apps/web
-        run: echo "No tests implemented yet"
+        run: bun test
+        # Three mask tests (snap.test.ts) still disagree with current behavior
+        # or need a canvas; drop this once they are settled.
         continue-on-error: true

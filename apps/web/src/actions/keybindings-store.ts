@@ -6,14 +6,16 @@ import type { TActionWithOptionalArgs } from "@/actions";
 import { getDefaultShortcuts } from "@/actions";
 import { isTypableDOMElement } from "@/utils/browser";
 import { isAppleDevice } from "@/utils/platform";
-import type {
-	Key,
-	KeybindingConfig,
-	ModifierKeys,
-	ShortcutKey,
-} from "@/actions/keybinding";
+import type { Key, ModifierKeys, ShortcutKey } from "@/actions/keybinding";
 import { isKey } from "@/actions/keybinding";
-import { runMigrations, CURRENT_VERSION } from "./keybindings/migrations";
+import { CURRENT_VERSION } from "./keybindings/migrations";
+import {
+	decodePersistedKeybindingsState,
+	migratePersistedKeybindingsState,
+	parseImportedKeybindings,
+	serializeKeybindingsState,
+} from "./keybindings/persistence";
+import type { PersistedKeybindingsState } from "./keybindings/persisted-state";
 
 export interface KeybindingConflict {
 	key: ShortcutKey;
@@ -35,7 +37,8 @@ interface KeybindingsState {
 	}) => void;
 	removeKeybinding: (key: ShortcutKey) => void;
 	resetToDefaults: () => void;
-	importKeybindings: (config: KeybindingConfig) => void;
+	/** Replaces all keybindings. Throws if `config` contains an invalid entry. */
+	importKeybindings: (config: unknown) => void;
 	exportKeybindings: () => Record<string, TActionWithOptionalArgs>;
 	openOverlay: (overlayId: string) => void;
 	closeOverlay: (overlayId: string) => void;
@@ -49,24 +52,8 @@ interface KeybindingsState {
 	getKeybindingString: (ev: KeyboardEvent) => ShortcutKey | null;
 }
 
-type PersistedState = {
-	keybindings: Record<string, TActionWithOptionalArgs>;
-	isCustomized: boolean;
-};
-
 function isDOMElement(element: EventTarget | null): element is HTMLElement {
 	return element instanceof HTMLElement;
-}
-
-function isPersistedState(value: unknown): value is PersistedState {
-	if (!value || typeof value !== "object") return false;
-	if (!("keybindings" in value) || !("isCustomized" in value)) return false;
-	const { keybindings, isCustomized } = value;
-	return (
-		typeof keybindings === "object" &&
-		keybindings !== null &&
-		typeof isCustomized === "boolean"
-	);
 }
 
 export const useKeybindingsStore = create<KeybindingsState>()(
@@ -133,19 +120,8 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 			},
 
 			importKeybindings: (config) => {
-				const next = new Map<ShortcutKey, TActionWithOptionalArgs>();
-				for (const [key, action] of Object.entries(config)) {
-					if (typeof key !== "string" || key.length === 0) {
-						throw new Error(`Invalid key format: ${key}`);
-					}
-					if (action !== undefined) {
-						// Public type's keys are `ShortcutKey`; trust the caller's typing.
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-						next.set(key as ShortcutKey, action);
-					}
-				}
 				set({
-					keybindings: next,
+					keybindings: parseImportedKeybindings({ config }),
 					isCustomized: true,
 				});
 			},
@@ -182,25 +158,19 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		{
 			name: "opencut-keybindings",
 			version: CURRENT_VERSION,
-			partialize: (state): PersistedState => ({
-				keybindings: Object.fromEntries(state.keybindings),
-				isCustomized: state.isCustomized,
-			}),
+			partialize: (state): PersistedKeybindingsState =>
+				serializeKeybindingsState(state),
 			migrate: (persisted, version) =>
-				runMigrations({ state: persisted, fromVersion: version }),
+				migratePersistedKeybindingsState({
+					state: persisted,
+					fromVersion: version,
+				}),
 			merge: (persisted, current) => {
-				if (!isPersistedState(persisted)) return current;
-				const entries = Object.entries(persisted.keybindings);
-				// Persistence boundary: keys are normalized by the migration chain.
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-				const typedEntries = entries as Array<
-					[ShortcutKey, TActionWithOptionalArgs]
-				>;
-				return {
-					...current,
-					keybindings: new Map(typedEntries),
-					isCustomized: persisted.isCustomized,
-				};
+				// Nothing stored yet (first visit): keep defaults without warning.
+				if (persisted === undefined) return current;
+				const decoded = decodePersistedKeybindingsState({ state: persisted });
+				if (!decoded) return current;
+				return { ...current, ...decoded };
 			},
 		},
 	),
