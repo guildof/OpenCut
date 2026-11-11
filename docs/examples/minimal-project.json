@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "id": "project-hello",
+    "name": "Hello",
+    "duration": 600000,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "scenes": [
+    {
+      "id": "scene-main",
+      "name": "Main scene",
+      "isMain": true,
+      "bookmarks": [],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "tracks": {
+        "overlay": [
+          {
+            "id": "track-title",
+            "name": "Title",
+            "type": "text",
+            "hidden": false,
+            "elements": [
+              {
+                "id": "clip-title",
+                "type": "text",
+                "name": "Title",
+                "duration": 600000,
+                "startTime": 0,
+                "trimStart": 0,
+                "trimEnd": 0,
+                "params": {
+                  "content": "Hello",
+                  "fontSize": 48,
+                  "fontFamily": "Arial",
+                  "color": "#ffffff",
+                  "textAlign": "center",
+                  "fontWeight": "normal",
+                  "fontStyle": "normal",
+                  "textDecoration": "none",
+                  "letterSpacing": 0,
+                  "lineHeight": 1.2,
+                  "background.enabled": false,
+                  "background.color": "#000000",
+                  "background.cornerRadius": 0,
+                  "background.paddingX": 30,
+                  "background.paddingY": 42,
+                  "background.offsetX": 0,
+                  "background.offsetY": 0,
+                  "transform.positionX": 0,
+                  "transform.positionY": 0,
+                  "transform.scaleX": 1,
+                  "transform.scaleY": 1,
+                  "transform.rotate": 0,
+                  "opacity": 1,
+                  "blendMode": "normal"
+                }
+              }
+            ]
+          }
+        ],
+        "main": {
+          "id": "track-main",
+          "name": "Main Track",
+          "type": "video",
+          "muted": false,
+          "hidden": false,
+          "elements": []
+        },
+        "audio": []
+      }
+    }
+  ],
+  "currentSceneId": "scene-main",
+  "settings": {
+    "fps": { "numerator": 30, "denominator": 1 },
+    "canvasSize": { "width": 1920, "height": 1080 },
+    "background": { "type": "color", "color": "#000000" }
+  },
+  "version": 31
+}
