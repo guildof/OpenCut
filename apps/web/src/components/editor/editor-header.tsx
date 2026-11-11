@@ -24,6 +24,11 @@ import { useEditor } from "@/editor/use-editor";
 import { CommandIcon, Logout05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ShortcutsDialog } from "@/actions/components/shortcuts-dialog";
+import {
+	ProjectFileInput,
+	projectFileMenuIcons,
+	useProjectFileActions,
+} from "@/project/components/project-file-actions";
 import Image from "next/image";
 import { cn } from "@/utils/ui";
 
@@ -51,6 +56,8 @@ function ProjectDropdown() {
 	const router = useRouter();
 	const editor = useEditor();
 	const activeProject = useEditor((e) => e.project.getActive());
+	const { inputRef, exportProject, openImportPicker, importFile } =
+		useProjectFileActions();
 
 	const handleExit = async () => {
 		if (isExiting) return;
@@ -121,13 +128,27 @@ function ProjectDropdown() {
 						/>
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="z-100 w-44">
+				<DropdownMenuContent align="start" className="z-100 w-56">
 					<DropdownMenuItem
 						onClick={handleExit}
 						disabled={isExiting}
 						icon={<HugeiconsIcon icon={Logout05Icon} />}
 					>
 						Exit project
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={() => {
+							void exportProject();
+						}}
+						icon={projectFileMenuIcons.export}
+					>
+						Export project file
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={openImportPicker}
+						icon={projectFileMenuIcons.import}
+					>
+						Import project file
 					</DropdownMenuItem>
 
 					<DropdownMenuItem
@@ -165,6 +186,12 @@ function ProjectDropdown() {
 			<ShortcutsDialog
 				isOpen={openDialog === "shortcuts"}
 				onOpenChange={(isOpen) => setOpenDialog(isOpen ? "shortcuts" : null)}
+			/>
+			<ProjectFileInput
+				inputRef={inputRef}
+				onFile={(file) => {
+					void importFile(file);
+				}}
 			/>
 		</>
 	);

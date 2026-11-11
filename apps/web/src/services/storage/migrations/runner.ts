@@ -55,13 +55,13 @@ export async function runStorageMigrations({
 			continue;
 		}
 
-		let projectRecord = project as ProjectRecord;
+		const projectRecord = project as ProjectRecord;
 		const projectId = getProjectId({ project: projectRecord });
 		if (!projectId) {
 			continue;
 		}
 
-		let currentVersion = getProjectVersion({ project: projectRecord });
+		const currentVersion = getProjectVersion({ project: projectRecord });
 		const targetVersion = orderedMigrations.at(-1)?.to ?? currentVersion;
 
 		if (currentVersion >= targetVersion) {
@@ -81,25 +81,14 @@ export async function runStorageMigrations({
 			projectName,
 		});
 
-		for (const migration of orderedMigrations) {
-			if (migration.from !== currentVersion) {
-				continue;
-			}
-
-			const result = await migration.run({
-				projectId,
-				project: projectRecord,
-			});
-
-			if (result.skipped) {
-				break;
-			}
-
-			await projectsAdapter.set({ key: projectId, value: result.project });
-			migratedCount++;
-			currentVersion = migration.to;
-			projectRecord = result.project;
-		}
+		const migrated = await migrateProjectRecord({
+			project: projectRecord,
+			migrations: orderedMigrations,
+			onStep: async ({ project: next }) => {
+				await projectsAdapter.set({ key: projectId, value: next });
+			},
+		});
+		migratedCount += migrated.stepsApplied;
 	}
 
 	// Ensure dialog is visible for minimum time so users can see it
@@ -122,7 +111,72 @@ export async function runStorageMigrations({
 	return { migratedCount };
 }
 
-function getProjectVersion({ project }: { project: ProjectRecord }): number {
+export interface MigrateProjectRecordResult {
+	project: ProjectRecord;
+	stepsApplied: number;
+	/** Version where a migration was skipped or the chain stopped short of the newest migration. */
+	stoppedAt: number | null;
+}
+
+/**
+ * Applies the same ordered migration chain as {@link runStorageMigrations},
+ * to a single in-memory project. IndexedDB persistence is optional via `onStep`,
+ * which the storage runner uses after each successful step.
+ */
+export async function migrateProjectRecord({
+	project,
+	migrations,
+	onStep,
+}: {
+	project: ProjectRecord;
+	migrations: StorageMigration[];
+	onStep?: (args: { project: ProjectRecord }) => Promise<void>;
+}): Promise<MigrateProjectRecordResult> {
+	const projectId = getProjectId({ project });
+	if (!projectId) {
+		return { project, stepsApplied: 0, stoppedAt: null };
+	}
+
+	const orderedMigrations = [...migrations].sort((a, b) => a.from - b.from);
+	let currentVersion = getProjectVersion({ project });
+	const targetVersion = orderedMigrations.at(-1)?.to ?? currentVersion;
+	if (currentVersion >= targetVersion) {
+		return { project, stepsApplied: 0, stoppedAt: null };
+	}
+
+	let projectRecord = project;
+	let stepsApplied = 0;
+
+	for (const migration of orderedMigrations) {
+		if (migration.from !== currentVersion) {
+			continue;
+		}
+
+		const result = await migration.run({
+			projectId,
+			project: projectRecord,
+		});
+
+		if (result.skipped) {
+			return { project: projectRecord, stepsApplied, stoppedAt: currentVersion };
+		}
+
+		projectRecord = result.project;
+		currentVersion = migration.to;
+		stepsApplied++;
+		if (onStep) {
+			await onStep({ project: projectRecord });
+		}
+	}
+
+	return {
+		project: projectRecord,
+		stepsApplied,
+		stoppedAt: currentVersion < targetVersion ? currentVersion : null,
+	};
+}
+
+export function getProjectVersion({ project }: { project: ProjectRecord }): number {
 	const versionValue = project.version;
 
 	// v2 and up - has explicit version field
