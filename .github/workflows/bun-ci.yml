@@ -44,7 +44,7 @@ jobs:
         with:
           # "latest" is sorted lexicographically and can install 0.9.1 over 0.15.1.
           # 0.9.1 ships a wasm-opt that rejects multi-table Wasm ("Only 1 table definition allowed in MVP").
-          version: "0.15.1"
+          version: "v0.15.1"
 
       - name: Cache Rust build artifacts
         uses: actions/cache@v4
